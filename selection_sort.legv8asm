@@ -1,0 +1,245 @@
+//Isaac Lo (isaaclo@iastate.edu) & Connor Persels (cpersels@iastate.edu)
+main:
+    // Set X0 as base address of memory
+    ADD X0, XZR, XZR
+    // Set X1 as our hardcoded array size
+    ADDI X1, XZR, #10
+
+    // Save base address in X19
+    ADD X19, X0, XZR
+    // Save array size in X20
+    ADD X20, X1, XZR
+
+    BL fill
+
+    // Set params
+    ADD X0, X19, XZR
+    ADD X1, X20, XZR
+
+    BL selection_sort
+
+    // Return index of smallest (value: 8)
+    // X0: array addrs, X1: start (0), X2: end (size, 10), X3: value (8)
+    ADD X0, XZR, XZR
+    ADD X1, XZR, XZR
+    ADD X2, X20, XZR
+    ADDI X3, XZR, #8
+
+    BL binary_search
+    PRNT X0
+
+    // Return index of largest (value: 80)
+    // X0: array addrs, X1: start (0), X2: end (size, 10), X3: value (80)
+    ADD X0, XZR, XZR
+    ADD X1, XZR, XZR
+    ADD X2, X20, XZR
+    ADDI X3, XZR, #80
+
+    BL binary_search
+    PRNT X0
+
+    // Return index of middle (value: 40)
+    // X0: array addrs, X1: start (0), X2: end (size, 10), X3: value (40)
+    ADD X0, XZR, XZR
+    ADD X1, XZR, XZR
+    ADD X2, X20, XZR
+    ADDI X3, XZR, #40
+
+    BL binary_search
+    PRNT X0
+
+    // Return index of value that is not contained (value: 0)
+    // X0: array addrs, X1: start (0), X2: end (size, 10), X3: value (0)
+    ADD X0, XZR, XZR
+    ADD X1, XZR, XZR
+    ADD X2, X20, XZR
+    ADDI X3, XZR, #0
+
+    BL binary_search
+    PRNT X0
+
+    B end
+
+
+//X0=addr1 X1=addr2
+swap:
+	//X0, X1
+	LDUR X9, [X0, #0]
+	LDUR X10, [X1, #0]
+
+	//complete swap
+	STUR X9, [X1, #0]
+	STUR X10, [X0, #0]
+	BR LR
+
+
+//X0=base-address X1=size
+find_min_idx:
+	//X9 = i
+	ADD X9, XZR, XZR
+	//X10=min-val
+	LDUR X10, [X0, #0]
+	//X11=min-idx
+	ADD X11, XZR, XZR
+
+	//for (i = 1; i < n; i++)
+	min_loop:
+	ADDI X9, X9, #1
+	SUBS XZR, X9, X1
+	B.GE end_min_loop
+
+	ADDI X0, X0, #8
+	//X12 = i_val
+	LDUR X12, [X0, #0]
+
+	//if (a[i] < a[min_idx])
+	SUBS XZR, X12, X10
+	B.GE end_min_if
+	ADD X10, X12, XZR
+	ADD X11, X9, XZR
+	end_min_if:
+	B min_loop
+
+	end_min_loop:
+	ADD X0, X11, XZR
+	BR LR
+
+
+//X0=base_addr X1=start_idx X2=end_idx X3=val
+binary_search:
+	//if (end < start)
+	SUBS XZR, X2, X1
+	B.GE bs_continue_1
+	ADDI X0, XZR, #-1
+	B end_bs
+
+	bs_continue_1:
+
+	//index = (start + end) /2
+	ADD X9, X1, X2
+	LSR X9, X9, #1
+
+	//X10 = X9 * 8
+	LSL X10, X9, #3
+
+	//X10 = idx_addr
+	ADD X10, X0, X10
+
+	//if (a[index] == value)
+	LDUR X10, [X10, #0]
+	SUBS XZR, X10, X3
+	B.NE bs_continue_2
+	ADD X0, X9, XZR
+	B end_bs
+
+	//if (a[index] > value) {
+	bs_continue_2:
+	SUBS XZR, X10, X3
+	B.LE bs_continue_3
+	SUBI X9, X9, #1
+	ADD X2, X9, XZR
+
+	//recursive call
+	SUBI SP, SP, #8
+	STUR LR, [SP, #0]
+	BL binary_search
+	LDUR LR, [SP, #0]
+	ADDI SP, SP, #8
+
+	//return
+	B end_bs
+
+	bs_continue_3:
+	ADDI X9, X9, #1
+	ADD X1, X9, XZR
+
+	//recursive call
+	SUBI SP, SP, #8
+	STUR LR, [SP, #0]
+	BL binary_search
+	LDUR LR, [SP, #0]
+	ADDI SP, SP, #8
+
+	end_bs:
+	BR LR
+
+
+// X0: base address, X1: array size
+fill:
+    // X9 gets array size * 8
+    LSL X9, X1, #3
+    // X9 is added to base addrs to get end addrs
+    ADD X9, X9, X0
+
+    fill_loop:
+        SUBS XZR, X0, X9
+        B.GE end_fill_loop
+        // fill array with descending numbers
+        SUB X10, X9, X0
+        STUR X10, [X0, #0]
+        ADDI X0, X0, #8
+        B fill_loop
+    end_fill_loop:
+BR LR
+
+
+// X0: array, X1: size
+selection_sort:
+    // X9 = i = 0
+    ADD X9, XZR, XZR
+
+    ss_loop:
+        // WHILE (X9 < X1)
+        SUBS X13, X9, X1
+        B.GE ss_end_loop
+
+        // STACK
+        SUBI SP, SP, #32
+        STUR X0, [SP, #0]
+        STUR X1, [SP, #8]
+        STUR X9, [SP, #16]
+        STUR LR, [SP, #24]
+
+        // X11 = i * 8
+        LSL X11, X9, #3
+        // X0: a + i*8
+        ADD X0, X0, X11
+        // X1: n - i
+        SUB X1, X1, X9
+
+        // CALL find_min_idx(a + i*8, n - i)
+        BL find_min_idx
+        // Save min idx result in X10
+        ADD X10, X0, XZR
+
+        LDUR LR, [SP, #24]
+        LDUR X9, [SP, #16]
+        LDUR X1, [SP, #8]
+        LDUR X0, [SP, #0]
+
+        // X11 = i * 8
+        LSL X11, X9, #3
+        // X0: a + i * 8
+        ADD X0, X0, X11
+        // X10 = min_indx * 8
+        LSL X10, X10, #3
+        // X1: a + i*8 + min_idx
+        ADD X1, X0, X10
+
+        // swap(a+i*8, a+i*8 + min_idx)
+        BL swap
+
+        LDUR LR, [SP, #24]
+        LDUR X9, [SP, #16]
+        LDUR X1, [SP, #8]
+        LDUR X0, [SP, #0]
+        ADDI SP, SP, #32
+
+
+        ADDI X9, X9, #1
+        B ss_loop
+    ss_end_loop:
+        BR LR
+
+end:
+    HALT
